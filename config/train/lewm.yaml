@@ -1,29 +1,29 @@
 defaults:
   - _self_
-  - launcher: local
-  - data: pusht
-  - model: lewm
+  - launcher: local   #what does this local mean?
+  - data: pusht     
+  - model: lewm   #model: le world model
 
 output_model_name: lewm
-subdir: ${hydra:job.id}
+subdir: ${hydra:job.id}  #subdir: hydra:job.id
 
-num_workers: 6
-train_split: 0.9
-seed: 3072
-img_size: 224
-embed_dim: 192
-history_size: 3
+num_workers: 6  #num of workers used for what reasons?
+train_split: 0.9 #90%
+seed: 3072 #3072 
+img_size: 224 #224x224
+embed_dim: 192 #Z(dim) : 192
+history_size: 3 #what does history size 3 mean
 
 trainer:
-  max_epochs: 100
-  devices: auto
-  accelerator: gpu
-  precision: bf16
-  gradient_clip_val: 1.0
+  max_epochs: 100  #max epochs 100
+  devices: auto #what does assigning device value to auto means?
+  accelerator: gpu 
+  precision: bf16 #batch frame 16 what are the other values and whats the use of this ?
+  gradient_clip_val: 1.0 
 
 loader:
-  batch_size: 128
-  num_workers: ${num_workers}
+  batch_size: 128  #batch size is 128
+  num_workers: ${num_workers} #number of workers why are they used
   persistent_workers: True
   prefetch_factor: 3
   pin_memory: True
