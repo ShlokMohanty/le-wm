@@ -18,13 +18,13 @@ class JEPA(nn.Module):
         projector=None,
         pred_proj=None,
     ):
-        super().__init__()
+        super().__init__() #why do we use a super() method is this a constructir for a class ?
 
-        self.encoder = encoder
-        self.predictor = predictor
-        self.action_encoder = action_encoder
-        self.projector = projector or nn.Identity()
-        self.pred_proj = pred_proj or nn.Identity()
+        self.encoder = encoder #which encoder is this ?
+        self.predictor = predictor #which predictor is this ?
+        self.action_encoder = action_encoder 
+        self.projector = projector or nn.Identity() #why is the projector used ? what is this identity()?
+        self.pred_proj = pred_proj or nn.Identity() #what is the pred projector what its use?
 
     def encode(self, info):
         """Encode observations and actions into embeddings.
@@ -49,8 +49,8 @@ class JEPA(nn.Module):
         emb: (B, T, D)
         act_emb: (B, T, A_emb)
         """
-        preds = self.predictor(emb, act_emb)
-        preds = self.pred_proj(rearrange(preds, "b t d -> (b t) d"))
+        preds = self.predictor(emb, act_emb) #is this emb means the embedding of the observation ?
+        preds = self.pred_proj(rearrange(preds, "b t d -> (b t) d")) 
         preds = rearrange(preds, "(b t) d -> b t d", b=emb.size(0))
         return preds
 
