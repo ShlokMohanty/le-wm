@@ -1,40 +1,41 @@
-_target_: jepa.JEPA
+_target_: jepa.JEPA  #what does the target variable mean here ?
 
 encoder:
-  _target_: stable_pretraining.backbone.utils.vit_hf
-  size: tiny
-  patch_size: 14
-  image_size: ${img_size}
+  _target_: stable_pretraining.backbone.utils.vit_hf  #is this  mean in this target variable we are using vit
+  size: tiny #size of what is tiny
+  patch_size: 14 #patch size what exactky is the patch here ?
+  image_size: ${img_size} #what is the size of the image 
   pretrained: false
   use_mask_token: false
-
+#what is the meaning od pretrained is false and use_mask_token false
 predictor:
-  _target_: module.ARPredictor
-  num_frames: ${history_size}
-  input_dim: ${embed_dim}
-  hidden_dim: ${embed_dim}
-  output_dim: ${embed_dim}
-  depth: 6
+  _target_: module.ARPredictor #what is the ARPredictor and why is it a target ?
+  num_frames: ${history_size} #number of frames and history size what i sthe difference between them?
+  input_dim: ${embed_dim} #input embedding dimension 
+  hidden_dim: ${embed_dim} #hidden embedding dimension
+  output_dim: ${embed_dim} #output embedding dimesnsion ?
+  depth: 6 
   heads: 16
   mlp_dim: 2048
   dim_head: 64
   dropout: 0.1
   emb_dropout: 0.0
+  #what are the depth, heads, mlp_dim, dim_head, dropout, emb_dropout?
 
 action_encoder:
-  _target_: module.Embedder
-  input_dim: ???
-  emb_dim: ${embed_dim}
+  _target_: module.Embedder #what is the traget in the action encoder
+  input_dim: ??? #why and what does this mean ?? 
+  emb_dim: ${embed_dim} 
 
 projector:
-  _target_: module.MLP
-  input_dim: ${embed_dim}
+  _target_: module.MLP #why is the projector used and what is the role of the mlp here ?
+  input_dim: ${embed_dim} 
   output_dim: ${embed_dim}
   hidden_dim: 2048
   norm_fn:
     _target_: torch.nn.BatchNorm1d
     _partial_: true
-
+# what is the meaning of the _partial variable here how is the batch norm 1d used here ?
 pred_proj:
   _target_: module.MLP
   input_dim: ${embed_dim}
