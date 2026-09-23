@@ -50,12 +50,12 @@ def run(cfg):
     ##       dataset       ##
     #########################
 
-    dataset_cfg = OmegaConf.to_container(cfg.data.dataset, resolve=True)
-    dataset_name = dataset_cfg.pop("name")
-    cache_dir = os.environ.get("LOCAL_DATASET_DIR", None)
+    dataset_cfg = OmegaConf.to_container(cfg.data.dataset, resolve=True) #converting the tuples lists and dictioneries from omegaconf to python dependencies for support
+    dataset_name = dataset_cfg.pop("name") #name is popped out 
+    cache_dir = os.environ.get("LOCAL_DATASET_DIR", None) #cache directory is used as the local dataset dir
     dataset = swm.data.load_dataset(
         dataset_name, transform=None, cache_dir=cache_dir, **dataset_cfg
-    )
+    )# stabel world model dataset loading dataset_name, transform is none cache-dir 
     transforms = [get_img_preprocessor(source='pixels', target='pixels', img_size=cfg.img_size)]
     
     with open_dict(cfg):
@@ -82,7 +82,7 @@ def run(cfg):
     ##       model / optim      ##
     ##############################
 
-    world_model = hydra.utils.instantiate(cfg.model)
+    world_model = hydra.utils.instantiate(cfg.model) #world model hydra.utils.instantiate cfg model
 
     optimizers = {
         'model_opt': {
@@ -93,12 +93,12 @@ def run(cfg):
         },
     }
 
-    data_module = spt.data.DataModule(train=train, val=val)
+    data_module = spt.data.DataModule(train=train, val=val) #what is the difference between the data_module and the world_model
     world_model = spt.Module(
         model = world_model,
         sigreg = SIGReg(**cfg.loss.sigreg.kwargs),
-        forward=partial(lejepa_forward, cfg=cfg),
-        optim=optimizers,
+        forward=partial(lejepa_forward, cfg=cfg), #partial will call the function lejepa forward and will keep the argument fixed for example the cfg 
+        optim=optimizers, # i want to know when is the optimizer is passsed as a dictionary or what ?
     )
 
     ##########################
@@ -106,9 +106,9 @@ def run(cfg):
     ##########################
 
     run_id = cfg.get("subdir") or ""
-    run_dir = Path(swm.data.utils.get_cache_dir(sub_folder='checkpoints'), run_id)
+    run_dir = Path(swm.data.utils.get_cache_dir(sub_folder='checkpoints'), run_id) #what is the purpose of getting the cache_dir and the run_id 
 
-    logger = None
+    logger = None #why is a logger used in general ?
     if cfg.wandb.enabled:
         logger = WandbLogger(**cfg.wandb.config)
         logger.log_hyperparams(OmegaConf.to_container(cfg))
@@ -119,12 +119,12 @@ def run(cfg):
 
     object_dump_callback = SaveCkptCallback(
         run_name=cfg.output_model_name, cfg=cfg.model, epoch_interval=1,
-    )
+    ) # how is the saveCkptCallback maintained or saved ?
 
-    trainer = pl.Trainer(
+    trainer = pl.Trainer( #lighting trainer property s being used
         **cfg.trainer,
         callbacks=[object_dump_callback],
-        num_sanity_val_steps=1,
+        num_sanity_val_steps=1, #sanity validation steps is 1 
         logger=logger,
         enable_checkpointing=True,
     )
