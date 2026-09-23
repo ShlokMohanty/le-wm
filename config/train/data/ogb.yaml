@@ -1,13 +1,13 @@
 dataset:
   name: ogbench/cube_single_expert.h5
-  num_steps: ${eval:'${num_preds} + ${history_size}'}
+  num_steps: ${eval:'${num_preds} + ${history_size}'} #what is the total num of steps then ?
   frameskip: 5
   keys_to_load:
     - pixels
     - action
     - observation
-  keys_to_cache:
+  keys_to_cache:   #why do we need the keys to cache?
     - action
     - observation
-  keys_to_merge:
+  keys_to_merge: #what is the meaning of teh keys to merge?
     proprio: proprio
