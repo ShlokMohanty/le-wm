@@ -276,10 +276,10 @@ class ARPredictor(nn.Module):
     def forward(self, x, c):
         """
         x: (B, T, d)
-        c: (B, T, act_dim)
+        c: (B, T, act_dim) #what is the c here used for ? am i confusing it with the channel 
         """
         T = x.size(1)
-        x = x + self.pos_embedding[:, :T]
-        x = self.dropout(x)
-        x = self.transformer(x, c)
+        x = x + self.pos_embedding[:, :T] #what does this mean ?
+        x = self.dropout(x) #why is the dropout used here ?
+        x = self.transformer(x, c) #what is this transformer then used for?
         return x
