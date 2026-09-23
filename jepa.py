@@ -60,23 +60,23 @@ class JEPA(nn.Module):
 
     def rollout(self, info, action_sequence, history_size: int = 3):
         """Rollout the model given an initial info dict and action sequence.
-        pixels: (B, S, T, C, H, W)
-        action_sequence: (B, S, T, action_dim)
+        pixels: (B, S, T, C, H, W) #batch, action plan samples, Time horizon , channel , height , width
+        action_sequence: (B, S, T, action_dim) 
          - S is the number of action plan samples
          - T is the time horizon
         """
 
         assert "pixels" in info, "pixels not in info_dict"
         H = info["pixels"].size(2)
-        B, S, T = action_sequence.shape[:3]
-        act_0, act_future = torch.split(action_sequence, [H, T - H], dim=2)
+        B, S, T = action_sequence.shape[:3] #what is this shape ?
+        act_0, act_future = torch.split(action_sequence, [H, T - H], dim=2) #in this why there is a H and T-H
         info["action"] = act_0
         n_steps = T - H
 
         # copy and encode initial info dict
-        _init = {k: v[:, 0] for k, v in info.items() if torch.is_tensor(v)}
-        _init = self.encode(_init)
-        emb = info["emb"] = _init["emb"].unsqueeze(1).expand(B, S, -1, -1)
+        _init = {k: v[:, 0] for k, v in info.items() if torch.is_tensor(v)} #what is this v here in the code?
+        _init = self.encode(_init) #is this encoding the value v?
+        emb = info["emb"] = _init["emb"].unsqueeze(1).expand(B, S, -1, -1) #how is this expanding please explain?
         _init = {k: detach_clone(v) for k, v in _init.items()}
 
         # flatten batch and sample dimensions for rollout
@@ -87,8 +87,8 @@ class JEPA(nn.Module):
         # rollout predictor autoregressively for n_steps
         HS = history_size
         for t in range(n_steps):
-            act_emb = self.action_encoder(act)
-            emb_trunc = emb[:, -HS:]  # (BS, HS, D)
+            act_emb = self.action_encoder(act) #action encoding 
+            emb_trunc = emb[:, -HS:]  # (BS, HS, D) batch size, history size and dimension  
             act_trunc = act_emb[:, -HS:]  # (BS, HS, A_emb)
             pred_emb = self.predict(emb_trunc, act_trunc)[:, -1:]  # (BS, 1, D)
             emb = torch.cat([emb, pred_emb], dim=1)  # (BS, T+1, D)
