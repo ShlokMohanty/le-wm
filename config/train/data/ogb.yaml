@@ -6,8 +6,16 @@ dataset:
     - pixels
     - action
     - observation
+    - eef_state
   keys_to_cache:   #why do we need the keys to cache?
     - action
     - observation
+    - eef_state
   keys_to_merge: #what is the meaning of teh keys to merge?
     proprio: proprio
+
+  eef_state_dim: 10 
+  eef_position_dims: [0, 1, 2]
+  eef_rotation_dims: [3, 4, 5, 6, 7, 8]
+  eef_gripper_dims: [9]
+  eef_rotation_representation: rotation_6d
