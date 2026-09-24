@@ -44,3 +44,11 @@ pred_proj:
   norm_fn:
     _target_: torch.nn.BatchNorm1d
     _partial_: true
+
+aux_decoder:
+  _target_: module.AuxActionDecoder
+  input_dim: ${embed_dim}
+  hidden_dim: 512
+  trans_dim: 3
+  rot_dim: 6  #6D rotation representation, not 3D Euler
+  grip_dim: 1
