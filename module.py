@@ -252,7 +252,7 @@ class AuxActionDecoder(nn.Module):
         return {
             "trans_pred": self.trans_head(emb),
             "rot_pred": self.rot_head(emb),
-            "grip_head": self.grip_head(emb),
+            "grip_pred": self.grip_head(emb),
         }
         
 
