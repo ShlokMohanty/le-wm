@@ -51,7 +51,7 @@ def lejepa_forward(self, batch, stage, cfg):
         aux_grip_loss = F.mse_loss(aux_pred["grip_pred"], rearrange(grip_gt, "b t d -> (b t) d"))
         output["aux_rot_loss"] = aux_rot_loss
         output["loss"] = (output["pred_loss"]
-                         + lambda * output["sigreg_loss"]
+                         + lambd * output["sigreg_loss"]
                          + cfg.loss.aux_ee.weight_trans * aux_trans_loss
                          + cfg.loss.aux_ee.weight_rot * aux_rot_loss
                          + cfg.loss.aux_ee.weight_grip * aux_grip_loss
