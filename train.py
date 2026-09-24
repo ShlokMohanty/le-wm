@@ -39,6 +39,22 @@ def lejepa_forward(self, batch, stage, cfg):
     output["pred_loss"] = (pred_emb - tgt_emb).pow(2).mean()
     output["sigreg_loss"]= self.sigreg(emb.transpose(0, 1))
     output["loss"] = output["pred_loss"] + lambd * output["sigreg_loss"]  
+    if cfg.loss.get("aux_ee", {}).get("weight", 0) > 0:
+        aux_pred = self.model.decode_aux(pred_emb)
+        gt_action = batch["action"][:, cfg.history_size:] 
+        trans_gt = gt_action[..., 0:3]
+        rot_gt = gt_action[..., 3:6]
+        grip_gt = gt_action[..., 6:7]
+        aux_trans_loss = F.mse_loss(aux_pred["trans_pred"], rearrange(trans_gt, "b t d -> (b t) d"))
+        aux_rot_loss = F.mse_loss(aux_pred["rot_pred"], rearrange(rot_gt, "b t d -> (b t) d"))
+        aux_grip_loss = F.mse_loss(aux_pred["grip_pred"], rearrange(grip_gt, "b t d -> (b t) d"))
+        output["aux_rot_loss"] = aux_rot_loss
+        output["loss"] = (output["pred_loss"]
+                         + lambda * output["sigreg_loss"]
+                         + cfg.loss.aux_ee.weight_trans * aux_trans_loss
+                         + cfg.loss.aux_ee.weight_rot * aux_rot_loss
+                         + cfg.loss.aux_ee.weight_grip * aux_grip_loss
+                         )
 
     losses_dict = {f"{stage}/{k}": v.detach() for k, v in output.items() if "loss" in k}
     self.log_dict(losses_dict, on_step=True, sync_dist=True)
