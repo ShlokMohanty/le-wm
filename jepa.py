@@ -17,6 +17,7 @@ class JEPA(nn.Module):
         action_encoder,
         projector=None,
         pred_proj=None,
+        aux_decoder=None
     ):
         super().__init__() #why do we use a super() method is this a constructir for a class ?
 
@@ -25,7 +26,19 @@ class JEPA(nn.Module):
         self.action_encoder = action_encoder 
         self.projector = projector or nn.Identity() #why is the projector used ? what is this identity()?
         self.pred_proj = pred_proj or nn.Identity() #what is the pred projector what its use?
+        self.aux_decoder= aux_decoder or nn.Identity()
 
+    def predict(self, emb, act_emb):
+        preds = self.predictor(emb, act_emb)
+        preds = self.pred_proj(rearrange(preds, "b t d -> (b t) d"))
+        preds = rearrange(preds, "(b t) d -> b t d", b=emb.size(0))
+        return preds
+
+    def decode_aux(self, pred_emb):
+        """New: decode predicted latent back into semantically labeled components."""
+        flat = rearrange(pred_emb, "b t d -> (b t) d")
+        return self.aux_decoder(flat)
+        
     def encode(self, info):
         """Encode observations and actions into embeddings.
         info: dict with pixels and action keys
