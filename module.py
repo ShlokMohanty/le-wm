@@ -244,7 +244,7 @@ class AuxActionDecoder(nn.Module):
     """ reconstructs raw action components form the latent embedding. action decoder pattern supervised
     directly with a per-component loss instead of flow_matching."""
     def __init__(self, input_dim, hidden_dim, trans_dim=3, rot_dim=3, grip_dim=1):
-        super().init()
+        super().__init__()
         self.trans_head = MLP(input_dim, hidden_dim, trans_dim)
         self.rot_head = MLP(input_dim, hidden_dim, rot_dim)
         self.grip_head = MLP(input_dim, hidden_dim, grip_dim)
