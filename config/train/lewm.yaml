@@ -41,3 +41,7 @@ loss:
     kwargs:
       knots: 17
       num_proj: 1024
+  aux_ee:
+    weight_trans: 0.1
+    weight_rot: 0.5  #weighted higher isince this is the failure mode we are targeting 
+    weight_grip: 0.1
