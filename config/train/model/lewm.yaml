@@ -50,5 +50,5 @@ aux_decoder:
   input_dim: ${embed_dim}
   hidden_dim: 512
   trans_dim: 3
-  rot_dim: 6  #6D rotation representation, not 3D Euler
+  rot_dim: 3  #3D rotation representation, not 3D Euler
   grip_dim: 1
