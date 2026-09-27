@@ -39,24 +39,26 @@ class QuaternionTo6D:
         r00 = 1 - 2 * (j * j + k * k)
         r01 = 2 * (i * j - k * w)
         r10 = 2 * (i * j + k * w) 
-        r11 = 1 - 2 * (i * i + k * K)
+        r11 = 1 - 2 * (i * i + k * k)
         r20 = 2 * (i * k - j * w)
         r21 = 2 * ( j * k + i * w)
+        # Zhou et al. 6D rotation: first two columns of the rotation matrix.
+        return torch.stack([r00, r10, r20, r01, r11, r21], dim=-1)
 
-class yawtosincos:
+class YawToSinCos:
     def __call__(self, x):
-        x =- x.float()
+        x = x.float()
         theta = x [..., 0] if x.dim() > 0 and x.shape[-1] == 1 else x 
-        return torch.stack([torch,sin(theta), torch.cos(theta)], dim=-1)
+        return torch.stack([torch.sin(theta), torch.cos(theta)], dim=-1)
 
 def get_rotation_transform(source: str, target: str, kind: str):
     if kind == "quat":
         fn = QuaternionTo6D()
     elif kind == "yaw":
-        fn = yawtosincos()
+        fn = YawToSinCos()
     else:
         raise ValueError(f"unknown rotation kind: {kind}")
-    return dt.transform.WrapTorchTransform(fn, source=source, target=target)\
+    return dt.transforms.WrapTorchTransform(fn, source=source, target=target)
 
 def rotation_output_dim(kind: str) -> int:
     return {"quat": 6, "yaw": 2}[kind]
