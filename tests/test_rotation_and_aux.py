@@ -138,3 +138,13 @@ def test_aux_enabled_and_build_aux_action_slices():
     )
     with pytest.raises(ValueError):
         train.build_aux_action_slices(cfg_partial, DummyDataset({"action_rot_quat": 4}), action_dim=10)
+
+    cfg_mixed = types.SimpleNamespace(
+        loss=cfg.loss,
+        data=types.SimpleNamespace(dataset=types.SimpleNamespace(keys_to_load=["action", "action_rot_quat"])),
+        model=cfg.model,
+    )
+    mixed_slices = train.build_aux_action_slices(
+        cfg_mixed, DummyDataset({"action_rot_quat": 4}), action_dim=10
+    )
+    assert mixed_slices == {"trans": [0, 3], "rot": [3, 9], "grip": [9, 10]}

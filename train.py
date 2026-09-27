@@ -22,6 +22,16 @@ ROTATION_COLUMNS={
     "action_rot_quat": "quat",
     "action_yaw": "yaw",
 }
+ACTION_COMPONENT_COLUMNS = {
+    "action_trans": "trans",
+    "action_pos": "trans",
+    "action_translation": "trans",
+    "action_rot": "rot",
+    "action_rot_quat": "rot",
+    "action_yaw": "rot",
+    "action_grip": "grip",
+    "action_gripper": "grip",
+}
 
 def aux_enabled(cfg):
     aux_cfg = cfg.loss.get("aux_ee", None)
@@ -38,22 +48,21 @@ def build_aux_action_slices(cfg, dataset, action_dim):
         if not col.startswith("action_"):
             continue
         col_dim = rotation_output_dim(ROTATION_COLUMNS[col]) if col in ROTATION_COLUMNS else dataset.get_dim(col)
-        if "grip" in col:
-            component_slices["grip"] = [offset, offset + col_dim]
-        elif col in ROTATION_COLUMNS or "rot" in col or "yaw" in col:
-            component_slices["rot"] = [offset, offset + col_dim]
-        elif "trans" in col or "pos" in col:
-            component_slices["trans"] = [offset, offset + col_dim]
+        component = ACTION_COMPONENT_COLUMNS.get(col)
+        if component in {"trans", "rot", "grip"}:
+            component_slices[component] = [offset, offset + col_dim]
         offset += col_dim
 
     if component_slices:
         required = {"trans", "rot", "grip"}
         missing = required.difference(component_slices)
         if missing:
-            raise ValueError(
-                f"partial aux action mapping from keys_to_load; missing {sorted(missing)}"
-            )
-        return component_slices
+            if "action" not in cfg.data.dataset.keys_to_load:
+                raise ValueError(
+                    f"partial aux action mapping from keys_to_load; missing {sorted(missing)}"
+                )
+        else:
+            return component_slices
 
     trans_dim = int(cfg.model.aux_decoder.trans_dim)
     rot_dim = int(cfg.model.aux_decoder.rot_dim)
