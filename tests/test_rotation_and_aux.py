@@ -77,6 +77,7 @@ def test_quaternion_to_6d_output_dim():
     q = torch.tensor([[1.0, 0.0, 0.0, 0.0]])
     out = QuaternionTo6D()(q)
     assert out.shape[-1] == 6
+    assert torch.allclose(out[0], torch.tensor([1.0, 0.0, 0.0, 0.0, 1.0, 0.0]), atol=1e-6)
 
 
 def test_yaw_to_sincos_output_dim():
@@ -87,6 +88,9 @@ def test_yaw_to_sincos_output_dim():
     yaw = torch.tensor([[0.5], [1.0]])
     out = YawToSinCos()(yaw)
     assert out.shape[-1] == 2
+
+    zero_out = YawToSinCos()(torch.tensor([[0.0]]))
+    assert torch.allclose(zero_out[0], torch.tensor([0.0, 1.0]), atol=1e-6)
 
 
 def test_aux_action_decoder_forward_shapes():
@@ -102,3 +106,33 @@ def test_aux_action_decoder_forward_shapes():
     assert out["trans_pred"].shape == (5, 3)
     assert out["rot_pred"].shape == (5, 6)
     assert out["grip_pred"].shape == (5, 1)
+
+
+def test_aux_enabled_and_build_aux_action_slices():
+    if torch is None:
+        pytest.skip("torch is not installed in this environment")
+    train = importlib.import_module("train")
+
+    class DummyDataset:
+        def __init__(self, dims):
+            self._dims = dims
+
+        def get_dim(self, key):
+            return self._dims[key]
+
+    cfg = types.SimpleNamespace(
+        loss={"aux_ee": {"weight_trans": 0.1, "weight_rot": 0.0, "weight_grip": 0.0}},
+        data=types.SimpleNamespace(dataset=types.SimpleNamespace(keys_to_load=["pixels", "action"])),
+        model=types.SimpleNamespace(aux_decoder=types.SimpleNamespace(trans_dim=3, rot_dim=6, grip_dim=1)),
+    )
+    assert train.aux_enabled(cfg)
+    slices = train.build_aux_action_slices(cfg, DummyDataset({"action": 10}), action_dim=10)
+    assert slices == {"trans": [0, 3], "rot": [3, 9], "grip": [9, 10]}
+
+    cfg_partial = types.SimpleNamespace(
+        loss=cfg.loss,
+        data=types.SimpleNamespace(dataset=types.SimpleNamespace(keys_to_load=["action_rot_quat"])),
+        model=cfg.model,
+    )
+    with pytest.raises(ValueError):
+        train.build_aux_action_slices(cfg_partial, DummyDataset({"action_rot_quat": 4}), action_dim=10)

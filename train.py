@@ -46,7 +46,13 @@ def build_aux_action_slices(cfg, dataset, action_dim):
             component_slices["trans"] = [offset, offset + col_dim]
         offset += col_dim
 
-    if {"trans", "rot", "grip"}.issubset(component_slices):
+    if component_slices:
+        required = {"trans", "rot", "grip"}
+        missing = required.difference(component_slices)
+        if missing:
+            raise ValueError(
+                f"partial aux action mapping from keys_to_load; missing {sorted(missing)}"
+            )
         return component_slices
 
     trans_dim = int(cfg.model.aux_decoder.trans_dim)
