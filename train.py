@@ -22,6 +22,64 @@ ROTATION_COLUMNS={
     "action_rot_quat": "quat",
     "action_yaw": "yaw",
 }
+ACTION_COMPONENT_COLUMNS = {
+    "action_trans": "trans",
+    "action_pos": "trans",
+    "action_translation": "trans",
+    "action_rot": "rot",
+    "action_rot_quat": "rot",
+    "action_yaw": "rot",
+    "action_grip": "grip",
+    "action_gripper": "grip",
+}
+
+def aux_requested(cfg):
+    aux_cfg = cfg.loss.get("aux_ee", None)
+    return aux_cfg is not None and (
+        aux_cfg.get("weight_trans", 0) > 0
+        or aux_cfg.get("weight_rot", 0) > 0
+        or aux_cfg.get("weight_grip", 0) > 0
+    )
+
+
+def aux_enabled(cfg):
+    return aux_requested(cfg) and hasattr(cfg.model, "aux_decoder")
+
+def build_aux_action_slices(cfg, dataset, action_dim):
+    component_slices = {}
+    offset = 0
+    if "action" not in cfg.data.dataset.keys_to_load:
+        for col in cfg.data.dataset.keys_to_load:
+            if not col.startswith("action_"):
+                continue
+            col_dim = rotation_output_dim(ROTATION_COLUMNS[col]) if col in ROTATION_COLUMNS else dataset.get_dim(col)
+            component = ACTION_COMPONENT_COLUMNS.get(col)
+            if component in {"trans", "rot", "grip"}:
+                component_slices[component] = [offset, offset + col_dim]
+            offset += col_dim
+
+        if component_slices:
+            required = {"trans", "rot", "grip"}
+            missing = required.difference(component_slices)
+            if missing:
+                raise ValueError(
+                    f"partial aux action mapping from keys_to_load; missing {sorted(missing)}"
+                )
+            return component_slices
+
+    trans_dim = int(cfg.model.aux_decoder.trans_dim)
+    grip_dim = int(cfg.model.aux_decoder.grip_dim)
+    rot_dim = action_dim - trans_dim - grip_dim
+    if rot_dim <= 0:
+        raise ValueError(
+            f"Invalid aux action dims for action dim {action_dim} with trans={trans_dim}, grip={grip_dim}"
+        )
+
+    return {
+        "trans": [0, trans_dim],
+        "rot": [trans_dim, trans_dim + rot_dim],
+        "grip": [trans_dim + rot_dim, trans_dim + rot_dim + grip_dim],
+    }
 
 def lejepa_forward(self, batch, stage, cfg):
     """encode observations, predict next states, compute losses."""
@@ -48,16 +106,19 @@ def lejepa_forward(self, batch, stage, cfg):
     output["pred_loss"] = (pred_emb - tgt_emb).pow(2).mean()
     output["sigreg_loss"]= self.sigreg(emb.transpose(0, 1))
     output["loss"] = output["pred_loss"] + lambd * output["sigreg_loss"]  
-    if cfg.loss.get("aux_ee", {}).get("weight", 0) > 0:
+    if aux_enabled(cfg):
         aux_pred = self.model.decode_aux(pred_emb)
-        gt_action = batch["action"][:, cfg.history_size:] 
-        trans_gt = gt_action[..., 0:3]
-        rot_gt = gt_action[..., 3:6]
-        grip_gt = gt_action[..., 6:7]
+        gt_action = batch["action"][:, cfg.history_size:]
+        slices = cfg.model.aux_action_slices
+        trans_gt = gt_action[..., slices["trans"][0]:slices["trans"][1]]
+        rot_gt = gt_action[..., slices["rot"][0]:slices["rot"][1]]
+        grip_gt = gt_action[..., slices["grip"][0]:slices["grip"][1]]
         aux_trans_loss = F.mse_loss(aux_pred["trans_pred"], rearrange(trans_gt, "b t d -> (b t) d"))
         aux_rot_loss = F.mse_loss(aux_pred["rot_pred"], rearrange(rot_gt, "b t d -> (b t) d"))
         aux_grip_loss = F.mse_loss(aux_pred["grip_pred"], rearrange(grip_gt, "b t d -> (b t) d"))
+        output["aux_trans_loss"] = aux_trans_loss
         output["aux_rot_loss"] = aux_rot_loss
+        output["aux_grip_loss"] = aux_grip_loss
         output["loss"] = (output["pred_loss"]
                          + lambd * output["sigreg_loss"]
                          + cfg.loss.aux_ee.weight_trans * aux_trans_loss
@@ -84,11 +145,18 @@ def run(cfg):
     transforms = [get_img_preprocessor(source='pixels', target='pixels', img_size=cfg.img_size)]
     
     with open_dict(cfg):
+        rotation_dim_delta = 0
+        rotation_kind = None
+        if aux_requested(cfg) and not hasattr(cfg.model, "aux_decoder"):
+            raise ValueError("aux_ee is enabled but model.aux_decoder is missing")
         for col in cfg.data.dataset.keys_to_load:
             if col.startswith("pixels"):
                 continue
             if col in ROTATION_COLUMNS:
                 kind = ROTATION_COLUMNS[col]
+                if rotation_kind is not None and rotation_kind != kind:
+                    raise ValueError(f"multiple rotation representations configured: {rotation_kind}, {kind}")
+                rotation_kind = kind
                 raw_dim = dataset.get_dim(col)
                 new_dim = rotation_output_dim(kind)
                 rotation_dim_delta += (new_dim - raw_dim)
@@ -97,7 +165,15 @@ def run(cfg):
             normalizer = get_column_normalizer(dataset, col, col)
             transforms.append(normalizer)
 
-        cfg.model.action_encoder.input_dim = (cfg.data.dataset.frameskip * (dataset.get_dim("action") + rotation_dim_delta)
+        action_dim = dataset.get_dim("action") + rotation_dim_delta
+        cfg.model.action_encoder.input_dim = (
+            cfg.data.dataset.frameskip * action_dim
+        )
+        if aux_enabled(cfg):
+            cfg.model.aux_action_slices = build_aux_action_slices(cfg, dataset, action_dim)
+            if hasattr(cfg.model, "aux_decoder"):
+                rot_slice = cfg.model.aux_action_slices["rot"]
+                cfg.model.aux_decoder.rot_dim = rot_slice[1] - rot_slice[0]
 
     transform = spt.data.transforms.Compose(*transforms)
     dataset.transform = transform
@@ -115,6 +191,13 @@ def run(cfg):
     ##############################
 
     world_model = hydra.utils.instantiate(cfg.model) #world model hydra.utils.instantiate cfg model
+    if aux_enabled(cfg):
+        expected_rot_dim = cfg.model.aux_action_slices["rot"][1] - cfg.model.aux_action_slices["rot"][0]
+        actual_rot_dim = world_model.aux_decoder.rot_head.net[-1].out_features
+        if actual_rot_dim != expected_rot_dim:
+            raise ValueError(
+                f"aux decoder rot dim mismatch: expected {expected_rot_dim}, got {actual_rot_dim}"
+            )
 
     optimizers = {
         'model_opt': {
