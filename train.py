@@ -10,10 +10,18 @@ import stable_worldmodel as swm
 import torch
 from lightning.pytorch.loggers import WandbLogger
 from omegaconf import OmegaConf, open_dict
-
 from module import SIGReg
-from utils import get_column_normalizer, get_img_preprocessor, SaveCkptCallback
-
+from utils import (
+    get_column_normalizer,
+    get_img_preprocessor,
+    get_rotation_transform,
+    rotation_output_dim,
+    SaveCkptCallback,
+)
+ROTATION_COLUMNS={
+    "action_rot_quat": "quat",
+    "action_yaw": "yaw",
+}
 
 def lejepa_forward(self, batch, stage, cfg):
     """encode observations, predict next states, compute losses."""
@@ -79,10 +87,17 @@ def run(cfg):
         for col in cfg.data.dataset.keys_to_load:
             if col.startswith("pixels"):
                 continue
+            if col in ROTATION_COLUMNS:
+                kind = ROTATION_COLUMNS[col]
+                raw_dim = dataset.get_dim(col)
+                new_dim = rotation_output_dim(kind)
+                rotation_dim_delta += (new_dim - raw_dim)
+                transforms.append(get_rotation_transform(col, col, kind))
+                continue
             normalizer = get_column_normalizer(dataset, col, col)
             transforms.append(normalizer)
 
-        cfg.model.action_encoder.input_dim = cfg.data.dataset.frameskip * dataset.get_dim("action")
+        cfg.model.action_encoder.input_dim = (cfg.data.dataset.frameskip * (dataset.get_dim("action") + rotation_dim_delta)
 
     transform = spt.data.transforms.Compose(*transforms)
     dataset.transform = transform
