@@ -44,24 +44,23 @@ def aux_enabled(cfg):
 def build_aux_action_slices(cfg, dataset, action_dim):
     component_slices = {}
     offset = 0
-    for col in cfg.data.dataset.keys_to_load:
-        if not col.startswith("action_"):
-            continue
-        col_dim = rotation_output_dim(ROTATION_COLUMNS[col]) if col in ROTATION_COLUMNS else dataset.get_dim(col)
-        component = ACTION_COMPONENT_COLUMNS.get(col)
-        if component in {"trans", "rot", "grip"}:
-            component_slices[component] = [offset, offset + col_dim]
-        offset += col_dim
+    if "action" not in cfg.data.dataset.keys_to_load:
+        for col in cfg.data.dataset.keys_to_load:
+            if not col.startswith("action_"):
+                continue
+            col_dim = rotation_output_dim(ROTATION_COLUMNS[col]) if col in ROTATION_COLUMNS else dataset.get_dim(col)
+            component = ACTION_COMPONENT_COLUMNS.get(col)
+            if component in {"trans", "rot", "grip"}:
+                component_slices[component] = [offset, offset + col_dim]
+            offset += col_dim
 
-    if component_slices:
-        required = {"trans", "rot", "grip"}
-        missing = required.difference(component_slices)
-        if missing:
-            if "action" not in cfg.data.dataset.keys_to_load:
+        if component_slices:
+            required = {"trans", "rot", "grip"}
+            missing = required.difference(component_slices)
+            if missing:
                 raise ValueError(
                     f"partial aux action mapping from keys_to_load; missing {sorted(missing)}"
                 )
-        else:
             return component_slices
 
     trans_dim = int(cfg.model.aux_decoder.trans_dim)
@@ -168,6 +167,9 @@ def run(cfg):
             cfg.model.aux_decoder.rot_dim = rotation_output_dim(rotation_kind)
         if aux_enabled(cfg):
             cfg.model.aux_action_slices = build_aux_action_slices(cfg, dataset, action_dim)
+            if hasattr(cfg.model, "aux_decoder"):
+                rot_slice = cfg.model.aux_action_slices["rot"]
+                cfg.model.aux_decoder.rot_dim = rot_slice[1] - rot_slice[0]
 
     transform = spt.data.transforms.Compose(*transforms)
     dataset.transform = transform
