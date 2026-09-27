@@ -191,6 +191,13 @@ def run(cfg):
     ##############################
 
     world_model = hydra.utils.instantiate(cfg.model) #world model hydra.utils.instantiate cfg model
+    if aux_enabled(cfg):
+        expected_rot_dim = cfg.model.aux_action_slices["rot"][1] - cfg.model.aux_action_slices["rot"][0]
+        actual_rot_dim = world_model.aux_decoder.rot_head.net[-1].out_features
+        if actual_rot_dim != expected_rot_dim:
+            raise ValueError(
+                f"aux decoder rot dim mismatch: expected {expected_rot_dim}, got {actual_rot_dim}"
+            )
 
     optimizers = {
         'model_opt': {
