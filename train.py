@@ -155,9 +155,10 @@ def run(cfg):
         cfg.model.action_encoder.input_dim = (
             cfg.data.dataset.frameskip * action_dim
         )
-        if rotation_kind is not None:
+        if rotation_kind is not None and hasattr(cfg.model, "aux_decoder"):
             cfg.model.aux_decoder.rot_dim = rotation_output_dim(rotation_kind)
-        cfg.model.aux_action_slices = build_aux_action_slices(cfg, dataset, action_dim)
+        if aux_enabled(cfg):
+            cfg.model.aux_action_slices = build_aux_action_slices(cfg, dataset, action_dim)
 
     transform = spt.data.transforms.Compose(*transforms)
     dataset.transform = transform

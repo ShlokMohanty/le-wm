@@ -88,6 +88,8 @@ def test_yaw_to_sincos_output_dim():
     yaw = torch.tensor([[0.5], [1.0]])
     out = YawToSinCos()(yaw)
     assert out.shape[-1] == 2
+    theta = torch.tensor(0.5)
+    assert torch.allclose(out[0], torch.stack([torch.sin(theta), torch.cos(theta)]), atol=1e-6)
 
     zero_out = YawToSinCos()(torch.tensor([[0.0]]))
     assert torch.allclose(zero_out[0], torch.tensor([0.0, 1.0]), atol=1e-6)
