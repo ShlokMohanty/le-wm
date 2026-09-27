@@ -33,13 +33,17 @@ ACTION_COMPONENT_COLUMNS = {
     "action_gripper": "grip",
 }
 
-def aux_enabled(cfg):
+def aux_requested(cfg):
     aux_cfg = cfg.loss.get("aux_ee", None)
     return aux_cfg is not None and (
         aux_cfg.get("weight_trans", 0) > 0
         or aux_cfg.get("weight_rot", 0) > 0
         or aux_cfg.get("weight_grip", 0) > 0
     )
+
+
+def aux_enabled(cfg):
+    return aux_requested(cfg) and hasattr(cfg.model, "aux_decoder")
 
 def build_aux_action_slices(cfg, dataset, action_dim):
     component_slices = {}
@@ -143,6 +147,8 @@ def run(cfg):
     with open_dict(cfg):
         rotation_dim_delta = 0
         rotation_kind = None
+        if aux_requested(cfg) and not hasattr(cfg.model, "aux_decoder"):
+            raise ValueError("aux_ee is enabled but model.aux_decoder is missing")
         for col in cfg.data.dataset.keys_to_load:
             if col.startswith("pixels"):
                 continue

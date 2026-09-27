@@ -128,6 +128,16 @@ def test_aux_enabled_and_build_aux_action_slices():
         model=types.SimpleNamespace(aux_decoder=types.SimpleNamespace(trans_dim=3, rot_dim=6, grip_dim=1)),
     )
     assert train.aux_enabled(cfg)
+    assert not train.aux_enabled(
+        types.SimpleNamespace(loss={}, data=cfg.data, model=cfg.model)
+    )
+    assert not train.aux_enabled(
+        types.SimpleNamespace(
+            loss={"aux_ee": {"weight_trans": 0.0, "weight_rot": 0.0, "weight_grip": 0.0}},
+            data=cfg.data,
+            model=cfg.model,
+        )
+    )
     slices = train.build_aux_action_slices(cfg, DummyDataset({"action": 10}), action_dim=10)
     assert slices == {"trans": [0, 3], "rot": [3, 9], "grip": [9, 10]}
 
