@@ -170,3 +170,11 @@ def test_aux_enabled_and_build_aux_action_slices():
         cfg_mixed_tail, DummyDataset({"action_rot_quat": 4, "action_grip": 1}), action_dim=10
     )
     assert mixed_tail_slices == {"trans": [0, 3], "rot": [3, 9], "grip": [9, 10]}
+
+    cfg_mutated = types.SimpleNamespace(
+        loss=cfg.loss,
+        data=types.SimpleNamespace(dataset=types.SimpleNamespace(keys_to_load=["action"])),
+        model=types.SimpleNamespace(aux_decoder=types.SimpleNamespace(trans_dim=3, rot_dim=99, grip_dim=1)),
+    )
+    mutated_slices = train.build_aux_action_slices(cfg_mutated, DummyDataset({"action": 10}), action_dim=10)
+    assert mutated_slices == {"trans": [0, 3], "rot": [3, 9], "grip": [9, 10]}

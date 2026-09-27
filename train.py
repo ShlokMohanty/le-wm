@@ -68,11 +68,11 @@ def build_aux_action_slices(cfg, dataset, action_dim):
             return component_slices
 
     trans_dim = int(cfg.model.aux_decoder.trans_dim)
-    rot_dim = int(cfg.model.aux_decoder.rot_dim)
     grip_dim = int(cfg.model.aux_decoder.grip_dim)
-    if trans_dim + rot_dim + grip_dim > action_dim:
+    rot_dim = action_dim - trans_dim - grip_dim
+    if rot_dim <= 0:
         raise ValueError(
-            f"Aux action dims ({trans_dim}+{rot_dim}+{grip_dim}) exceed action dim ({action_dim})"
+            f"Invalid aux action dims for action dim {action_dim} with trans={trans_dim}, grip={grip_dim}"
         )
 
     return {
@@ -169,8 +169,6 @@ def run(cfg):
         cfg.model.action_encoder.input_dim = (
             cfg.data.dataset.frameskip * action_dim
         )
-        if rotation_kind is not None and hasattr(cfg.model, "aux_decoder"):
-            cfg.model.aux_decoder.rot_dim = rotation_output_dim(rotation_kind)
         if aux_enabled(cfg):
             cfg.model.aux_action_slices = build_aux_action_slices(cfg, dataset, action_dim)
             if hasattr(cfg.model, "aux_decoder"):
