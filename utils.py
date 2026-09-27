@@ -31,6 +31,37 @@ def get_column_normalizer(dataset, source: str, target: str):
     std = data.std(0, keepdim=True).clone()
     return dt.transforms.WrapTorchTransform(ZScoreNormalizer(mean, std), source=source, target=target)
 
+class QuaternionTo6D:
+    def __call__(self,x):
+        x = x.float()
+        q = x / x.norm(dim=-1, keepdim=True).clamp_min(1e-8)
+        w, i, j, k = q.unbind(-1)
+        r00 = 1 - 2 * (j * j + k * k)
+        r01 = 2 * (i * j - k * w)
+        r10 = 2 * (i * j + k * w) 
+        r11 = 1 - 2 * (i * i + k * K)
+        r20 = 2 * (i * k - j * w)
+        r21 = 2 * ( j * k + i * w)
+
+class yawtosincos:
+    def __call__(self, x):
+        x =- x.float()
+        theta = x [..., 0] if x.dim() > 0 and x.shape[-1] == 1 else x 
+        return torch.stack([torch,sin(theta), torch.cos(theta)], dim=-1)
+
+def get_rotation_transform(source: str, target: str, kind: str):
+    if kind == "quat":
+        fn = QuaternionTo6D()
+    elif kind == "yaw":
+        fn = yawtosincos()
+    else:
+        raise ValueError(f"unknown rotation kind: {kind}")
+    return dt.transform.WrapTorchTransform(fn, source=source, target=target)\
+
+def rotation_output_dim(kind: str) -> int:
+    return {"quat": 6, "yaw": 2}[kind]
+
+
 class SaveCkptCallback(Callback):
     """Callback to save model checkpoint after each epoch using save_pretrained."""
 
